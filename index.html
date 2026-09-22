@@ -21,6 +21,8 @@ body{margin:0;background:var(--bench);color:var(--ink);font:14px/1.5 var(--num);
 .brand{font-weight:700;font-size:15px;color:var(--term);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .brand:after{content:"";display:inline-block;width:.6em;height:1.1em;background:var(--term);vertical-align:-.2em;margin-left:4px;animation:blink 1s steps(1) infinite}
 @keyframes blink{50%{opacity:0}}
+body.beat .brand:after{animation:none;opacity:0}
+body.beat.lit .brand:after{opacity:1}
 @media (prefers-reduced-motion:reduce){.brand:after{animation:none}.drawer,.scrim,.needle{transition:none}}
 .lamp{margin-left:auto;display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);text-transform:lowercase;white-space:nowrap}
 .lamp i{width:10px;height:10px;border-radius:1px;background:#b8c2bb}
@@ -177,7 +179,9 @@ var lvlA=0,lvlB=0,matchK=1,lastTransport=0;
 /* ---------- sync analysis state ---------- */
 var HOP=256,RAW_LEN=16384,FINE_N=4096,FINE_L=384;
 var envRate,ENV_LEN,envA,envB,envW=0,envCount=0,prevA=-9,prevB=-9,accA=0,accB=0,accN=0;
-var rawA,rawB,rawW=0,rawCount=0,skipBlocks=0;
+var rawA,rawB,rawW=0,rawCount=0,skipBlocks=0,lastBlockT=0;
+var beat={bpm:0,period:0,anchor:0,lit:false,on:false};
+var reduceMotion=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 var sync={res:null,resR:0,fine:false,inverted:false,natural:null,curve:null,curveL:0,peakK:0,lastRun:0,progress:0};
 
 function setupSync(){
@@ -209,6 +213,52 @@ function onBlock(e){
     }
   }
   rawCount=Math.min(RAW_LEN,rawCount+n);
+  lastBlockT=performance.now();
+}
+
+/* ---------- tempo tracking on channel 1 ---------- */
+function runBpm(){
+  if(!mediaEl||mediaEl.paused||envCount<envRate*4){ beat.bpm=0; return; }
+  var N=Math.min(envCount,Math.round(envRate*8)),x=new Float32Array(N),i,l;
+  lastN(envA,envW,ENV_LEN,N,x);
+  var raw=x.slice(0),m=0;
+  for(i=0;i<N;i++) m+=x[i]; m/=N;
+  var e0=0;
+  for(i=0;i<N;i++){ x[i]-=m; e0+=x[i]*x[i]; }
+  if(e0<1e-9){ beat.bpm=0; return; }
+  e0/=N;
+  var lagMin=Math.floor(envRate*60/190),lagMax=Math.ceil(envRate*60/65);
+  var ac=new Float32Array(lagMax+2),best=-1,bl=0;
+  for(l=lagMin-1;l<=lagMax+1;l++){
+    var sum=0;
+    for(i=0;i+l<N;i++) sum+=x[i]*x[i+l];
+    ac[l]=sum/(N-l);
+  }
+  for(l=lagMin;l<=lagMax;l++){
+    var b=60*envRate/l,w=Math.exp(-0.5*Math.pow(Math.log2(b/120),2));
+    var sc=ac[l]*w;
+    if(ac[l]>=ac[l-1]&&ac[l]>=ac[l+1]&&sc>best){best=sc;bl=l;}
+  }
+  if(!bl||ac[bl]/e0<0.08){ beat.bpm=0; return; }
+  var P=bl+vertex(ac,bl),bpm=60*envRate/P;
+  if(beat.bpm&&Math.abs(bpm-beat.bpm)/beat.bpm<0.04){ bpm=beat.bpm*0.7+bpm*0.3; P=60*envRate/bpm; }
+  var Pi=Math.floor(P),bestS=-1,bo=0;
+  for(var o=0;o<Pi;o++){
+    var s2=0;
+    for(var k=0;;k++){ var idx=N-1-Math.round(o+k*P); if(idx<0) break; s2+=raw[idx]; }
+    if(s2>bestS){bestS=s2;bo=o;}
+  }
+  var dA=Math.max(0,st.offsetMs)/1000;
+  beat.bpm=bpm; beat.period=60000/bpm;
+  beat.anchor=lastBlockT-bo*HOP/SR*1000-dA*1000;
+}
+function tickCursor(now){
+  var want=beat.bpm>0&&!reduceMotion;
+  if(want!==beat.on){ beat.on=want; document.body.classList.toggle('beat',want); }
+  if(!want) return;
+  var ph=((now-beat.anchor)%beat.period+beat.period)%beat.period;
+  var lit=ph<beat.period*0.5;
+  if(lit!==beat.lit){ beat.lit=lit; document.body.classList.toggle('lit',lit); }
 }
 
 function lastN(ring,w,len,n,out){
@@ -604,7 +654,8 @@ function frame(ts){
   }
   if(st.freeze) foot+='  frozen';
   readout(lines,foot);
-  if(ctx&&ts-sync.lastRun>600){ sync.lastRun=ts; runSync(); updateSyncUI(); }
+  if(ctx&&ts-sync.lastRun>600){ sync.lastRun=ts; runSync(); runBpm(); updateSyncUI(); }
+  tickCursor(performance.now());
   if(mediaEl&&ts-lastTransport>250){ lastTransport=ts; updateTransport(); }
 }
 
