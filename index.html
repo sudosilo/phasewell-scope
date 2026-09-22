@@ -86,6 +86,11 @@ body.menu .scrim{opacity:1;pointer-events:auto}
 .pop{position:fixed;z-index:40;max-width:min(280px,calc(100vw - 16px));background:var(--panel);color:var(--ink);border:1px solid var(--term);border-radius:4px;padding:9px 11px;font:12px/1.5 var(--num);box-shadow:0 4px 16px rgba(30,60,40,.16)}
 .pop:before{content:"> ";color:var(--term);font-weight:700}
 .pop[hidden]{display:none}
+.txt{flex:1 1 200px;min-width:0;min-height:44px;border:1px solid #bfcac2;border-radius:3px;padding:10px;font:13px var(--num);background:#fff;color:var(--ink)}
+.txt:focus-visible{outline:3px solid #7aa7c7;outline-offset:2px}
+.ytframe{position:relative;aspect-ratio:16/9;margin-top:10px;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:#e6ebe7}
+.ytframe iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
@@ -143,6 +148,23 @@ body.menu .scrim{opacity:1;pointer-events:auto}
       <button class="btn two" id="micBtn">Mic on</button>
     </div>
     <div class="fname" id="micName">Mic off</div>
+  </div>
+
+  <div class="card" id="ytCard">
+    <div class="ch"><span class="dot" style="background:var(--c2)"></span>YouTube, heard through the mic</div>
+    <div class="row" style="margin-top:10px">
+      <input class="txt" id="ytUrl" type="url" inputmode="url" placeholder="Paste a YouTube link" autocomplete="off">
+      <button class="btn go" id="ytLoadBtn">Load video</button>
+    </div>
+    <div id="ytBox" hidden>
+      <div class="ytframe"><div id="ytPlayer"></div></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="ytPlay" disabled>Play</button>
+        <button class="btn" id="ytMatch" disabled>Match file time</button>
+        <button class="btn" id="ytClose">Close video</button>
+      </div>
+    </div>
+    <div class="fname" id="ytStatus" style="white-space:normal">Paste a link, load it, then turn the mic on.</div>
   </div>
 
   <p class="hint">Play the song on channel 1 while the same song plays through a speaker or another device near the mic. Offset shows how far the mic trails the file. Align now delays the leading channel so both line up, and X-Y draws a thin diagonal line when they match.</p>
@@ -1008,6 +1030,65 @@ $('#closeBtn').addEventListener('click',function(){ setMenu(false); });
 $('#scrim').addEventListener('click',function(){ setMenu(false); });
 document.addEventListener('keydown',function(e){ if(e.key==='Escape') setMenu(false); });
 
+/* YouTube player, heard through the mic */
+var yt={player:null,apiLoading:false,pending:null};
+function ytStatus(t){ $('#ytStatus').textContent=t; }
+function ytId(s){
+  s=(s||'').trim();
+  var m=s.match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/|\/live\/)([A-Za-z0-9_-]{11})/);
+  if(m) return m[1];
+  if(/^[A-Za-z0-9_-]{11}$/.test(s)) return s;
+  return null;
+}
+function loadYtApi(cb){
+  if(window.YT&&window.YT.Player){ cb(); return; }
+  yt.pending=cb;
+  if(yt.apiLoading) return;
+  yt.apiLoading=true;
+  window.onYouTubeIframeAPIReady=function(){ var f=yt.pending; yt.pending=null; if(f) f(); };
+  var sc=document.createElement('script');
+  sc.src='https://www.youtube.com/iframe_api';
+  sc.onerror=function(){ yt.apiLoading=false; ytStatus('The YouTube player could not load. Check the connection and tap Load video again.'); };
+  document.head.appendChild(sc);
+}
+function ytReadyText(){ return micStream?'Ready. Press Play.':'Ready. Turn the mic on so channel 2 hears the video.'; }
+function ytLoad(){
+  var id=ytId($('#ytUrl').value);
+  if(!id){ ytStatus('That link does not contain a video ID. Paste the full link from the share button.'); return; }
+  ytStatus('Loading video...');
+  loadYtApi(function(){
+    $('#ytBox').hidden=false;
+    if(yt.player&&yt.player.cueVideoById){ yt.player.cueVideoById(id); ytStatus(ytReadyText()); return; }
+    yt.player=new YT.Player('ytPlayer',{
+      videoId:id,
+      playerVars:{playsinline:1,rel:0},
+      events:{
+        onReady:function(){ $('#ytPlay').disabled=false; $('#ytMatch').disabled=false; ytStatus(ytReadyText()); },
+        onStateChange:function(e){ $('#ytPlay').textContent=(e.data===1)?'Pause':'Play'; },
+        onError:function(e){ ytStatus('This video will not play here (error '+e.data+'). Its owner may block playback on other sites.'); }
+      }
+    });
+  });
+}
+$('#ytLoadBtn').addEventListener('click',ytLoad);
+$('#ytUrl').addEventListener('keydown',function(e){ if(e.key==='Enter') ytLoad(); });
+$('#ytPlay').addEventListener('click',function(){
+  if(!yt.player||!yt.player.getPlayerState) return;
+  if(yt.player.getPlayerState()===1) yt.player.pauseVideo(); else yt.player.playVideo();
+});
+$('#ytMatch').addEventListener('click',function(){
+  if(!yt.player||!yt.player.seekTo) return;
+  if(!mediaEl){ ytStatus('Load the same song as a file on channel 1 first.'); return; }
+  yt.player.seekTo(mediaEl.currentTime,true);
+  resetSync(); updateSyncUI();
+  ytStatus('Video moved to '+fmtT(mediaEl.currentTime)+'. Let the offset settle, then tap Align now.');
+});
+$('#ytClose').addEventListener('click',function(){
+  if(yt.player&&yt.player.stopVideo) yt.player.stopVideo();
+  $('#ytBox').hidden=true; $('#ytPlay').textContent='Play';
+  ytStatus('Video closed.');
+});
+
 /* info buttons */
 var INFO={
   burger:'Opens the controls drawer with the delay trim, display sliders, and latency calibration.',
@@ -1046,6 +1127,10 @@ var INFO={
   level:'Scales the mic trace to the same size as the file trace so the shapes are easy to compare.',
   freeze:'Stops the display so one moment can be studied.',
   calibrate:'Plays a few clicks through the speaker and times how long the mic takes to hear them. That round trip is the phone built in delay. Needs the mic on and the volume up.',
+  yt:'Plays a YouTube video inside the page. Browsers keep YouTube audio sealed off from page code, so the scope hears it the way it hears a second device, out the speaker and into the mic on channel 2. Load the same song as a file on channel 1 with its speaker off to compare the two.',
+  ytplay:'Starts or pauses the video.',
+  ytmatch:'Jumps the video to the same spot as the song on channel 1. Then let the offset settle and tap Align now to trim out what is left.',
+  ytclose:'Stops the video and hides the player.',
   sublat:'Removes the measured round trip from the offset readout so it shows only the difference between the two sources.'
 };
 var pop=document.createElement('div'); pop.className='pop'; pop.setAttribute('role','tooltip'); pop.hidden=true; document.body.appendChild(pop);
@@ -1092,7 +1177,7 @@ function addIB(sel,k,where){
   ['label[for="offset"]','trim','in'],['[data-nudge="10"]','nudge'],
   ['label[for="tb"]','timebase','in'],['label[for="g1"]','gain1','in'],['label[for="g2"]','gain2','in'],['label[for="pers"]','glow','in'],
   ['#trigBtn','trigger'],['#levelBtn','level'],['#freezeBtn','freeze'],
-  ['#calBtn','calibrate'],['#calUseBtn','sublat']
+  ['#calBtn','calibrate'],['#calUseBtn','sublat'],['#ytLoadBtn','yt'],['#ytPlay','ytplay'],['#ytMatch','ytmatch'],['#ytClose','ytclose']
 ].forEach(function(m){ addIB(m[0],m[1],m[2]); });
 document.addEventListener('click',function(e){ if(popFor&&!pop.contains(e.target)) closePop(); });
 document.addEventListener('scroll',closePop,true);
