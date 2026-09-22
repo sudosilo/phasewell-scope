@@ -76,8 +76,11 @@ body.menu .scrim{opacity:1;pointer-events:auto}
 .dhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
 .dtitle{font-weight:700;color:var(--term)}
 .dsec{font-size:12px;color:var(--term);margin:18px 0 2px;border-bottom:1px dashed var(--line);padding-bottom:4px}
-.ib{position:relative;flex:0 0 auto;width:22px;height:22px;border-radius:50%;border:1px solid var(--term);background:var(--panel);color:var(--term);font:700 12px/1 var(--num);padding:0;margin-left:2px;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;cursor:pointer;text-transform:none}
+.ib{position:relative;flex:0 0 auto;width:22px;height:22px;border-radius:50%;border:1px solid var(--term);background:var(--panel);color:var(--term);font:700 12px/1 var(--num);padding:0;margin-left:2px;display:none;align-items:center;justify-content:center;vertical-align:middle;cursor:pointer;text-transform:none}
 .ib:after{content:"";position:absolute;inset:-9px}
+.ib.show{display:inline-flex;animation:ibIn .15s ease-out}
+@keyframes ibIn{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.ib.show{animation:none}}
 .ib[aria-expanded="true"]{background:var(--term);color:#fff}
 .ib:focus-visible{outline:3px solid #7aa7c7;outline-offset:2px}
 .k .ib,.ctl label .ib,.scale .ib{width:18px;height:18px;font-size:11px;margin-left:4px}
@@ -167,7 +170,7 @@ body.menu .scrim{opacity:1;pointer-events:auto}
     <div class="fname" id="ytStatus" style="white-space:normal">Paste a link, load it, then turn the mic on.</div>
   </div>
 
-  <p class="hint">Play the song on channel 1 while the same song plays through a speaker or another device near the mic. Offset shows how far the mic trails the file. Align now delays the leading channel so both line up, and X-Y draws a thin diagonal line when they match.</p>
+  <p class="hint">Play the song on channel 1 while the same song plays through a speaker or another device near the mic. Offset shows how far the mic trails the file. Align now delays the leading channel so both line up, and X-Y draws a thin diagonal line when they match. Press any control or screen to reveal its i button for a few seconds.</p>
 </div>
 
 <div class="scrim" id="scrim"></div>
@@ -1135,7 +1138,9 @@ var INFO={
 };
 var pop=document.createElement('div'); pop.className='pop'; pop.setAttribute('role','tooltip'); pop.hidden=true; document.body.appendChild(pop);
 var popFor=null;
-function closePop(){ pop.hidden=true; if(popFor) popFor.setAttribute('aria-expanded','false'); popFor=null; }
+function hideIB(b,ms){ clearTimeout(b._t); b._t=setTimeout(function(){ if(popFor!==b) b.classList.remove('show'); },ms); }
+function revealIB(b){ b.classList.add('show'); hideIB(b,4000); }
+function closePop(){ pop.hidden=true; if(popFor){ popFor.setAttribute('aria-expanded','false'); var was=popFor; popFor=null; hideIB(was,1500); } }
 function openPop(btn){
   if(popFor===btn){ closePop(); return; }
   closePop();
@@ -1154,9 +1159,11 @@ function makeIB(k){
   b.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); openPop(b); });
   return b;
 }
-function addIB(sel,k,where){
+function addIB(sel,k,where,ownerSel){
   var el=document.querySelector(sel); if(!el) return;
   var b=makeIB(k);
+  var owner=ownerSel?document.querySelector(ownerSel):(where==='in'?(el.closest('.ctl')||el.parentNode):el);
+  if(owner) owner.addEventListener('pointerdown',function(){ revealIB(b); });
   if(where==='in') el.appendChild(b);
   else if(where==='corner'){
     var w=document.createElement('div'); w.className='cwrap';
@@ -1171,14 +1178,14 @@ function addIB(sel,k,where){
   ['.chip[data-mode="diff"]','diff'],['.chip[data-mode="spectrum"]','spectrum'],['.chip[data-mode="waterfall"]','waterfall'],
   ['.chip[data-mode="radial"]','radial'],['.chip[data-mode="corr"]','corr'],
   ['.sync > div:nth-child(1) .k','offset','in'],['.sync > div:nth-child(2) .k','residual','in'],['.sync > div:nth-child(3) .k','match','in'],
-  ['.scale span:nth-child(2)','meter','in'],
+  ['.scale span:nth-child(2)','meter','in','.meter'],
   ['#alignBtn','align'],['#trackBtn','track'],['#zeroBtn','zero'],
-  ['label[for="file"]','load'],['#playBtn','play'],['#spkBtn','speaker'],['#loopBtn','loop'],['#time','seek'],['#micBtn','mic'],
-  ['label[for="offset"]','trim','in'],['[data-nudge="10"]','nudge'],
+  ['label[for="file"]','load'],['#playBtn','play'],['#spkBtn','speaker'],['#loopBtn','loop'],['#time','seek','after','.seek'],['#micBtn','mic'],
+  ['label[for="offset"]','trim','in'],['[data-nudge="10"]','nudge','after','#drawer .row'],
   ['label[for="tb"]','timebase','in'],['label[for="g1"]','gain1','in'],['label[for="g2"]','gain2','in'],['label[for="pers"]','glow','in'],
   ['#trigBtn','trigger'],['#levelBtn','level'],['#freezeBtn','freeze'],
   ['#calBtn','calibrate'],['#calUseBtn','sublat'],['#ytLoadBtn','yt'],['#ytPlay','ytplay'],['#ytMatch','ytmatch'],['#ytClose','ytclose']
-].forEach(function(m){ addIB(m[0],m[1],m[2]); });
+].forEach(function(m){ addIB(m[0],m[1],m[2],m[3]); });
 document.addEventListener('click',function(e){ if(popFor&&!pop.contains(e.target)) closePop(); });
 document.addEventListener('scroll',closePop,true);
 document.addEventListener('keydown',function(e){ if(e.key==='Escape') closePop(); });
