@@ -3,65 +3,83 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#e8ecea">
-<title>Dual Channel Scope</title>
+<meta name="theme-color" content="#eef1ee">
+<title>scope:~$ dual_channel</title>
 <style>
 :root{
-  --bench:#e8ecea; --panel:#fbfcfb; --ink:#1c2528; --muted:#667276; --line:#d3dad6;
-  --bezel:#d9dfdc; --screen:#f2f8f3; --c1:#0f5c8c; --c2:#c8323c; --c3:#5b3fb0; --c4:#b76e00; --ok:#2b8a3e;
+  --bench:#eef1ee; --panel:#fcfdfb; --ink:#17301f; --muted:#5d6f63; --line:#cfd8d1;
+  --bezel:#dde3de; --screen:#f4f9f4; --term:#1f6b35; --c1:#0f5c8c; --c2:#c8323c; --c3:#5b3fb0; --c4:#b76e00; --ok:#2b8a3e;
   --num: ui-monospace, "Roboto Mono", "SF Mono", Menlo, Consolas, monospace;
 }
 *{box-sizing:border-box}
 html{color-scheme:light;-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bench);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--bench);color:var(--ink);font:14px/1.5 var(--num);padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
 .wrap{max-width:880px;margin:0 auto;padding:12px 12px 32px}
-.top{display:flex;align-items:center;justify-content:space-between;margin:2px 4px 10px}
-.brand{font-weight:700;font-size:17px;letter-spacing:.01em}
-.lamp{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--muted)}
-.lamp i{width:11px;height:11px;border-radius:50%;background:#bcc5c1;box-shadow:inset 0 1px 2px rgba(0,0,0,.25)}
-.lamp.on{color:var(--ok);font-weight:600}
-.lamp.on i{background:var(--ok);box-shadow:0 0 0 4px rgba(43,138,62,.18)}
-.bezel{background:var(--bezel);border:1px solid #c6cec9;border-radius:20px;padding:10px;box-shadow:inset 0 1px 0 #fff}
-canvas#scope{display:block;width:100%;aspect-ratio:4/3;border-radius:10px;background:var(--screen);border:1px solid #bfc9c3;touch-action:manipulation}
-.modes{display:flex;gap:6px;overflow-x:auto;padding:10px 2px 2px;scrollbar-width:none}
+.top{display:flex;align-items:center;gap:10px;margin:2px 2px 10px}
+.burger{flex:0 0 auto;width:44px;height:44px;border:1px solid #bfcac2;background:var(--panel);border-radius:4px;display:inline-flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;cursor:pointer;padding:0}
+.burger span{display:block;width:20px;height:2px;background:var(--term)}
+.brand{font-weight:700;font-size:15px;color:var(--term);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand:after{content:"";display:inline-block;width:.6em;height:1.1em;background:var(--term);vertical-align:-.2em;margin-left:4px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.brand:after{animation:none}.drawer,.scrim,.needle{transition:none}}
+.lamp{margin-left:auto;display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);text-transform:lowercase;white-space:nowrap}
+.lamp i{width:10px;height:10px;border-radius:1px;background:#b8c2bb}
+.lamp.on{color:var(--ok);font-weight:700}
+.lamp.on i{background:var(--ok);box-shadow:0 0 0 3px rgba(43,138,62,.18)}
+.bezel{background:var(--bezel);border:1px solid #c3ccc5;border-radius:10px;padding:8px}
+canvas#scope{display:block;width:100%;aspect-ratio:4/3;border-radius:4px;background:var(--screen);border:1px solid #b9c5bc;touch-action:manipulation}
+.modes{display:flex;gap:6px;overflow-x:auto;padding:8px 2px 2px;scrollbar-width:none}
 .modes::-webkit-scrollbar{display:none}
-.chip{flex:0 0 auto;border:1px solid #c3cbc7;background:var(--panel);color:var(--ink);border-radius:8px;padding:9px 13px;font:600 14px/1 system-ui,sans-serif}
-.chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px}
+.chip{flex:0 0 auto;border:1px solid #bfcac2;background:var(--panel);color:var(--ink);border-radius:3px;padding:9px 12px;font:600 13px/1 var(--num);text-transform:lowercase;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--term);color:#fff;border-color:var(--term)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px;margin-top:12px}
 .sync{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
-.k{font-size:13px;color:var(--muted)}
-.v{font:700 21px/1.25 var(--num)}
+.k{font-size:12px;color:var(--muted);text-transform:lowercase}
+.k:before{content:"$ ";color:var(--term)}
+.v{font:700 20px/1.25 var(--num)}
 .sub{font-size:12px;color:var(--muted);min-height:1.3em}
-.meter{position:relative;height:28px;margin:14px 0 4px;border-radius:8px;background:linear-gradient(90deg,#f8e1e3,#f2f8f3 40%,#d8efdd 50%,#f2f8f3 60%,#f8e1e3);border:1px solid var(--line);overflow:hidden}
-.meter:before{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:1px dashed #9aa7a1}
-.needle{position:absolute;top:2px;bottom:2px;width:4px;margin-left:-2px;left:50%;background:var(--ink);border-radius:2px;transition:left .3s ease}
-.scale{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.meter{position:relative;height:26px;margin:14px 0 4px;border-radius:3px;background:linear-gradient(90deg,#f8e1e3,#f4f9f4 40%,#d6eedb 50%,#f4f9f4 60%,#f8e1e3);border:1px solid var(--line);overflow:hidden}
+.meter:before{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:1px dashed #93a497}
+.needle{position:absolute;top:2px;bottom:2px;width:4px;margin-left:-2px;left:50%;background:var(--ink);border-radius:1px;transition:left .3s ease}
+.scale{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
 .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.ch{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}
-.dot{width:11px;height:11px;border-radius:50%}
-.btn{appearance:none;border:1px solid #c3cbc7;background:#f3f6f4;color:var(--ink);border-radius:10px;padding:10px 14px;font:600 14px/1 system-ui,sans-serif;display:inline-flex;align-items:center;justify-content:center;min-height:44px;cursor:pointer}
+.ch{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;text-transform:lowercase}
+.ch:before{content:">";color:var(--term)}
+.dot{width:10px;height:10px;border-radius:1px}
+.btn{appearance:none;border:1px solid #bfcac2;background:#f1f5f2;color:var(--ink);border-radius:3px;padding:10px 12px;font:600 13px/1 var(--num);text-transform:lowercase;display:inline-flex;align-items:center;justify-content:center;min-height:44px;cursor:pointer}
+.btn:not(.small):before{content:"[\00a0";opacity:.55}
+.btn:not(.small):after{content:"\00a0]";opacity:.55}
 .btn.one{background:var(--c1);border-color:var(--c1);color:#fff}
 .btn.two{background:var(--c2);border-color:var(--c2);color:#fff}
-.btn.go{background:var(--ink);border-color:var(--ink);color:#fff}
-.btn[aria-pressed="true"]{background:#dbe7e0;border-color:#8fb39b}
+.btn.go{background:var(--term);border-color:var(--term);color:#fff}
+.btn[aria-pressed="true"]{background:#d9eadf;border-color:#86b394}
 .btn:disabled{opacity:.45}
-.btn.small{min-height:38px;padding:8px 11px;font-size:13px}
-.btn:focus-visible,.chip:focus-visible,input:focus-visible{outline:3px solid #7aa7c7;outline-offset:2px}
-.fname{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:8px}
-input[type=range]{width:100%;accent-color:var(--ink)}
-.ctl{display:grid;grid-template-columns:96px 1fr 78px;align-items:center;gap:10px;margin:10px 0}
-.ctl label{font-size:14px;color:var(--muted)}
-.ctl output{font:13px var(--num);text-align:right}
+.btn.small{min-height:38px;padding:8px 10px;font-size:12px}
+.btn:focus-visible,.chip:focus-visible,.burger:focus-visible,input:focus-visible{outline:3px solid #7aa7c7;outline-offset:2px}
+.fname{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:8px}
+input[type=range]{width:100%;accent-color:var(--term)}
+.ctl{display:grid;grid-template-columns:92px 1fr 80px;align-items:center;gap:10px;margin:10px 0}
+.ctl label{font-size:13px;color:var(--muted);text-transform:lowercase}
+.ctl output{font:12px var(--num);text-align:right}
 .seek{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin-top:8px}
-.time{font:13px var(--num);color:var(--muted)}
-.sep{border:0;border-top:1px solid var(--line);margin:14px 0}
-.hint{font-size:14px;color:var(--muted);margin:14px 4px 0;max-width:62ch}
+.time{font:12px var(--num);color:var(--muted)}
+.sep{border:0;border-top:1px dashed var(--line);margin:14px 0}
+.hint{font-size:13px;color:var(--muted);margin:14px 4px 0;max-width:62ch}
+.hint:before{content:"# ";color:var(--term)}
+.scrim{position:fixed;inset:0;background:rgba(30,60,40,.22);opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+.drawer{position:fixed;top:0;left:0;bottom:0;width:min(90vw,390px);background:var(--panel);border-right:1px solid var(--line);transform:translateX(-102%);transition:transform .22s ease;z-index:21;overflow-y:auto;padding:calc(env(safe-area-inset-top,0px) + 12px) 14px calc(env(safe-area-inset-bottom,0px) + 24px);box-shadow:4px 0 18px rgba(30,60,40,.12)}
+body.menu .drawer{transform:none}
+body.menu .scrim{opacity:1;pointer-events:auto}
+.dhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.dtitle{font-weight:700;color:var(--term)}
+.dsec{font-size:12px;color:var(--term);margin:18px 0 2px;border-bottom:1px dashed var(--line);padding-bottom:4px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="top">
-    <div class="brand">Dual Channel Scope</div>
+    <button class="burger" id="burger" aria-label="Open controls" aria-expanded="false" aria-controls="drawer"><span></span><span></span><span></span></button>
+    <div class="brand">scope:~$ dual_channel</div>
     <div class="lamp" id="lamp"><i></i><span id="lampText">Idle</span></div>
   </div>
 
@@ -91,15 +109,6 @@ input[type=range]{width:100%;accent-color:var(--ink)}
       <button class="btn" id="trackBtn" aria-pressed="false">Auto track</button>
       <button class="btn" id="zeroBtn">Reset trim</button>
     </div>
-    <div class="ctl"><label for="offset">Delay trim</label><input type="range" id="offset" min="-3000" max="3000" step="0.5" value="0"><output id="offsetOut">+0.0 ms</output></div>
-    <div class="row">
-      <button class="btn small" data-nudge="-10">-10</button>
-      <button class="btn small" data-nudge="-1">-1</button>
-      <button class="btn small" data-nudge="-0.1">-0.1</button>
-      <button class="btn small" data-nudge="0.1">+0.1</button>
-      <button class="btn small" data-nudge="1">+1</button>
-      <button class="btn small" data-nudge="10">+10</button>
-    </div>
   </div>
 
   <div class="card">
@@ -121,7 +130,23 @@ input[type=range]{width:100%;accent-color:var(--ink)}
     <div class="fname" id="micName">Mic off</div>
   </div>
 
-  <div class="card">
+  <p class="hint">Play the song on channel 1 while the same song plays through a speaker or another device near the mic. Offset shows how far the mic trails the file. Align now delays the leading channel so both line up, and X-Y draws a thin diagonal line when they match.</p>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Controls" aria-hidden="true">
+  <div class="dhead"><span class="dtitle">$ controls</span><button class="btn" id="closeBtn">close</button></div>
+  <div class="dsec"># sync trim</div>
+  <div class="ctl"><label for="offset">Delay trim</label><input type="range" id="offset" min="-3000" max="3000" step="0.5" value="0"><output id="offsetOut">+0.0 ms</output></div>
+    <div class="row">
+      <button class="btn small" data-nudge="-10">-10</button>
+      <button class="btn small" data-nudge="-1">-1</button>
+      <button class="btn small" data-nudge="-0.1">-0.1</button>
+      <button class="btn small" data-nudge="0.1">+0.1</button>
+      <button class="btn small" data-nudge="1">+1</button>
+      <button class="btn small" data-nudge="10">+10</button>
+    </div>
+  <div class="dsec"># display</div>
     <div class="ctl"><label for="tb">Time base</label><input type="range" id="tb" min="0" max="6" step="1" value="3"><output id="tbOut"></output></div>
     <div class="ctl"><label for="g1">Ch 1 gain</label><input type="range" id="g1" min="-2" max="3" step="0.25" value="0"><output id="g1Out">x1.00</output></div>
     <div class="ctl"><label for="g2">Ch 2 gain</label><input type="range" id="g2" min="-2" max="3" step="0.25" value="0"><output id="g2Out">x1.00</output></div>
@@ -131,17 +156,14 @@ input[type=range]{width:100%;accent-color:var(--ink)}
       <button class="btn" id="levelBtn" aria-pressed="true">Auto level</button>
       <button class="btn" id="freezeBtn" aria-pressed="false">Freeze</button>
     </div>
-  </div>
-
-  <p class="hint">Play the song on channel 1 while the same song plays through a speaker or another device near the mic. Offset shows how far the mic trails the file. Align now delays the leading channel so both line up, and X-Y draws a thin diagonal line when they match.</p>
-</div>
+</aside>
 
 <script>
 (function(){
 'use strict';
 var $=function(s){return document.querySelector(s);};
 var cv=$('#scope'), g=cv.getContext('2d');
-var COL={bg:'#f2f8f3',bgr:'242,248,243',grid:'#d9e6dd',grid2:'#aebfb4',c1:'#0f5c8c',c2:'#c8323c',c3:'#5b3fb0',c4:'#b76e00',ink:'#1c2528',muted:'#667276'};
+var COL={bg:'#f4f9f4',bgr:'244,249,244',grid:'#d9e6dd',grid2:'#aebfb4',c1:'#0f5c8c',c2:'#c8323c',c3:'#5b3fb0',c4:'#b76e00',ink:'#1c2528',muted:'#667276'};
 var MONO='ui-monospace, "Roboto Mono", Menlo, Consolas, monospace';
 var TB=[128,256,512,1024,2048,4096,8192];
 var st={mode:'overlay',ws:1024,g1:1,g2:1,persist:0.35,trigger:true,autolevel:true,freeze:false,track:false,offsetMs:0,speaker:true,loop:false};
@@ -421,7 +443,7 @@ function findTrigger(a,ws){
 function rms(a,s,e){var sum=0; for(var i=s;i<e;i++) sum+=a[i]*a[i]; return Math.sqrt(sum/Math.max(1,e-s));}
 function dbTxt(v){return v<1e-6?'-inf dB':(20*Math.log10(v)).toFixed(1)+' dB';}
 function centerText(t){
-  g.fillStyle=COL.muted; g.font=(14*DPR)+'px system-ui, sans-serif'; g.textAlign='center'; g.textBaseline='middle';
+  g.fillStyle=COL.muted; g.font=(13*DPR)+'px '+MONO; g.textAlign='center'; g.textBaseline='middle';
   g.fillText(t,W/2,H/2); g.textAlign='left';
 }
 
@@ -665,6 +687,17 @@ $('#alignBtn').addEventListener('click',function(){
   else{ $('#resS').textContent='need more signal'; }
 });
 $('#trackBtn').addEventListener('click',function(){ st.track=!st.track; togglePressed(this,st.track); });
+
+var burger=$('#burger'),drawerEl=$('#drawer');
+function setMenu(open){
+  document.body.classList.toggle('menu',open);
+  burger.setAttribute('aria-expanded',open?'true':'false');
+  drawerEl.setAttribute('aria-hidden',open?'false':'true');
+}
+burger.addEventListener('click',function(){ setMenu(!document.body.classList.contains('menu')); });
+$('#closeBtn').addEventListener('click',function(){ setMenu(false); });
+$('#scrim').addEventListener('click',function(){ setMenu(false); });
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') setMenu(false); });
 
 window.addEventListener('resize',resize);
 resize(); updateTbOut(); updateSyncUI();
